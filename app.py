@@ -23,6 +23,7 @@ st.set_page_config(layout="wide", page_title="Análise de Gols (2016-2024)")
 st.title("Análise Profunda de Gols dos Jogadores (2016-2024)")
 
 # Carregar dados do CSV padrão
+# Substitua pelo caminho do seu arquivo CSV
 df = load_data("gols_jogadores_2016_2024_com_filtros.csv")
 
 # Sidebar - configurações do usuário
@@ -50,15 +51,22 @@ context = 'Selecionados' if selected_players else 'Geral'
 st.subheader(f"Top {top_n} Artilheiros ({context})")
 resumo = data.groupby('Nome')['Gols'].sum().reset_index()
 resumo_sorted = resumo.sort_values('Gols', ascending=False).head(top_n)
-st.dataframe(resumo_sorted.rename(columns={'Gols':'Total Selecionado'}))
-fig, ax = plt.subplots(figsize=(3,2))
-sns.barplot(data=resumo_sorted, x='Gols', y='Nome', ax=ax)
-ax.set_xlabel('Gols'); ax.set_ylabel('Jogador')
-st.pyplot(fig)
+
+# Usando colunas para exibir o dataframe e o gráfico lado a lado
+col1, col2 = st.columns(2)
+with col1:
+    st.dataframe(resumo_sorted.rename(columns={'Gols':'Total Selecionado'}))
+with col2:
+    # Definindo um tamanho de figura para o Matplotlib
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.barplot(data=resumo_sorted, x='Gols', y='Nome', ax=ax)
+    ax.set_xlabel('Gols'); ax.set_ylabel('Jogador')
+    st.pyplot(fig)
 
 ##### 2) Série Temporal #####
 st.subheader(f"Série Temporal de Gols por Ano ({context})")
-fig2, ax2 = plt.subplots(figsize=(3,2))
+# Definindo um tamanho de figura para o Matplotlib
+fig2, ax2 = plt.subplots(figsize=(8, 5))
 if selected_players:
     sns.lineplot(data=data, x='Ano', y='Gols', hue='Nome', marker='o', ax=ax2)
 else:
@@ -84,7 +92,8 @@ st.subheader(f"Regressão à Média ({context})")
 reg_df = data.copy()
 reg_df['Next_Gols'] = reg_df.groupby('Nome')['Gols'].shift(-1)
 reg_df = reg_df.dropna(subset=['Next_Gols'])
-fig4, ax4 = plt.subplots(figsize=(3,2))
+# Definindo um tamanho de figura para o Matplotlib
+fig4, ax4 = plt.subplots(figsize=(8, 5))
 sns.regplot(data=reg_df, x='Gols', y='Next_Gols', scatter_kws={'alpha':0.5}, ax=ax4)
 ax4.set_xlabel('(x) Gols N'); ax4.set_ylabel('(y) Gols N+1')
 st.pyplot(fig4)
@@ -103,17 +112,25 @@ if pct:
                             for n,p in pct.items()
                             for _,grp in [(n,gs.get_group(n))]])
     st.write(f"Variação média: {df_pct['Pct'].mean():.2f}%")
-    fig_cdf,ax_cdf=plt.subplots(figsize=(3,2))
+
+    st.subheader("Distribuição Cumulativa da Variação Percentual")
+    fig_cdf,ax_cdf=plt.subplots(figsize=(8,5))
     sns.histplot(df_pct['Pct'],stat='density',cumulative=True,ax=ax_cdf)
     st.pyplot(fig_cdf)
-    fig_sc,ax_sc=plt.subplots(figsize=(3,2))
+
+    st.subheader("Variação Percentual vs. Gols Máximos")
+    fig_sc,ax_sc=plt.subplots(figsize=(8,5))
     sns.scatterplot(data=df_pct,x='Max',y='Pct',ax=ax_sc)
     st.pyplot(fig_sc)
-    fig_box,ax_box=plt.subplots(figsize=(3,2))
+
+    st.subheader("Variação Percentual por Faixa de Gols (Boxplot)")
+    fig_box,ax_box=plt.subplots(figsize=(8,5))
     df_pct['Bin']=pd.cut(df_pct['Max'],bins=[0,10,20,30,df_pct['Max'].max()+1],
                          labels=['0-10','11-20','21-30','>30'])
     sns.boxplot(data=df_pct,x='Bin',y='Pct',ax=ax_box)
     st.pyplot(fig_box)
+
+    st.subheader("Série Temporal de Gols Relativa ao Ano de Pico")
     rel=[]
     for nome,grp in df_long_full.groupby('Nome'):
         idx=grp['Gols'].idxmax();y=grp.loc[idx,'Ano']
@@ -121,15 +138,19 @@ if pct:
             v=grp[grp['Ano']==y+off]['Gols']
             rel.append({'Off':off,'Gols':v.values[0] if not v.empty else np.nan})
     df_rel=pd.DataFrame(rel).dropna()
-    fig_rel,ax_rel=plt.subplots(figsize=(3,2))
+    fig_rel,ax_rel=plt.subplots(figsize=(8,5))
     sns.lineplot(data=df_rel,x='Off',y='Gols',estimator='mean',marker='o',ax=ax_rel)
     st.pyplot(fig_rel)
-    fig_hm,ax_hm=plt.subplots(figsize=(3,2))
+
+    st.subheader("Mapa de Calor da Variação Percentual")
+    fig_hm,ax_hm=plt.subplots(figsize=(8,5))
     qt=pd.qcut(df_pct['Pct'],4)
     pt=pd.pivot_table(df_pct,index='Bin',columns=qt,aggfunc='size',fill_value=0)
     sns.heatmap(pt,annot=True,fmt='d',ax=ax_hm)
     st.pyplot(fig_hm)
-    st.plotly_chart(px.scatter(df_pct,x='Max',y='Pct',hover_data=['Nome'],width=300,height=200))
+
+    st.subheader("Variação Percentual (Gráfico Interativo)")
+    st.plotly_chart(px.scatter(df_pct,x='Max',y='Pct',hover_data=['Nome'],width=700,height=500))
 else:
     st.write("Sem dados para variações.")
 
@@ -149,7 +170,8 @@ for th in thrs:
         decline_rate=np.mean([1 for x in p if x<0])/len(p)*100
         res.append({'Thr':th,'%Declínio':decline_rate})
 res_df=pd.DataFrame(res)
-fig6,ax6=plt.subplots(figsize=(6,4))
+# Definindo um tamanho de figura para o Matplotlib
+fig6,ax6=plt.subplots(figsize=(8,5))
 sns.barplot(data=res_df,x='Thr',y='%Declínio',ax=ax6)
 ax6.set_ylabel('% de jogadores com declínio após temporada >= Threshold')
 st.pyplot(fig6)
@@ -176,7 +198,7 @@ df_supr=pd.DataFrame({
     'Jogadores':[count_success,count_fail]
 })
 # Gráfico de barras
-# Gráfico interativo com tooltip
+# Gráfico interativo com tooltip, definindo explicitamente o tamanho
 fig7 = px.bar(
     df_supr,
     x='Resultado',
@@ -184,7 +206,8 @@ fig7 = px.bar(
     hover_data={'Jogadores':True},
     labels={'Jogadores':'Número de jogadores'},
     title='Jogadores com ≥10 gols na liga durante a temporada',
-    height=300
+    width=700,
+    height=500
 )
 st.plotly_chart(fig7)
 
