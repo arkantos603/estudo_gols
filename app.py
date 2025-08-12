@@ -212,4 +212,3 @@ fig7 = px.bar(
 st.plotly_chart(fig7)
 
 st.markdown("---")
-st.write("Desenvolvido com 🐍 Python, 📊 Seaborn/Matplotlib e ⚡ Streamlit.")
